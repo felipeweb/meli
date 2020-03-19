@@ -8,43 +8,55 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/felipeweb/meli/pkg/metrics"
 	"github.com/gorilla/mux"
+	"github.com/sirupsen/logrus"
 	"gocloud.dev/server"
 	"gocloud.dev/server/requestlog"
 )
 
-func routes() http.Handler {
+// Config server
+type Config struct {
+	Metrics *metrics.Config
+	Addr    string
+}
+
+func routes() *mux.Router {
 	r := mux.NewRouter()
 	return r
 }
 
-func setup() *server.Options {
-	return &server.Options{
-		RequestLogger: requestlog.NewStackdriverLogger(os.Stdout, func(e error) { fmt.Println(e) }),
-	}
-}
-
 // Start the HTTP server
-func Start(ctx context.Context, addr string) error {
-	s := server.New(routes(), setup())
+func Start(ctx context.Context, cfg *Config) error {
+	r := routes()
+	logrus.Info("initialize metrics\n")
+	err := metrics.Initialize(ctx, r, cfg.Metrics)
+	if err != nil {
+		return fmt.Errorf("unable to initialize metrics: %w", err)
+	}
+	s := server.New(r, &server.Options{
+		RequestLogger: requestlog.NewStackdriverLogger(os.Stdout, func(e error) { fmt.Println(e) }),
+	})
 	cerr := make(chan error, 1)
 	go func(ctx context.Context) {
 		sigint := make(chan os.Signal, 1)
 		signal.Notify(sigint, os.Interrupt, syscall.SIGTERM)
 		<-sigint
+		logrus.Info("server shutting down\n")
 		if err := s.Shutdown(ctx); err != nil {
 			cerr <- err
 		}
 	}(ctx)
 	go func(ctx context.Context) {
-		err := s.ListenAndServe(addr)
+		logrus.Infof("server listening at %v\n", cfg.Addr)
+		err := s.ListenAndServe(cfg.Addr)
 		if err != nil {
 			cerr <- err
 		}
 	}(ctx)
-	err := <-cerr
+	err = <-cerr
 	if err != http.ErrServerClosed {
-		return err
+		return fmt.Errorf("server error: %w", err)
 	}
 	return nil
 }
