@@ -15,10 +15,10 @@ import (
 )
 
 var (
-	ShortKey = tag.MustNewKey("meli/short")
-	FullKey  = tag.MustNewKey("meli/full")
-	Redirect = stats.Int64("redirects", "redirects", stats.UnitNone)
-	v        = &view.View{
+	ShortKey      = tag.MustNewKey("meli/short")
+	FullKey       = tag.MustNewKey("meli/full")
+	Redirect      = stats.Int64("redirects", "redirects", stats.UnitNone)
+	redirectsView = &view.View{
 		Name:        "redirects",
 		Description: "redirects",
 		TagKeys:     []tag.Key{ShortKey, FullKey},
@@ -45,6 +45,10 @@ func Initialize(ctx context.Context, r *mux.Router, cfg *Config) error {
 		return err
 	}
 	view.RegisterExporter(prom)
+	err = view.Register(redirectsView)
+	if err != nil {
+		return err
+	}
 	r.Handle("/metrics", prom)
 	if cfg.TraceExporterAddr != "" {
 		te, err := jaeger.NewExporter(jaeger.Options{
