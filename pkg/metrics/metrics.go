@@ -17,13 +17,21 @@ import (
 var (
 	ShortKey      = tag.MustNewKey("meli/short")
 	FullKey       = tag.MustNewKey("meli/full")
-	Redirect      = stats.Int64("redirects", "redirects", stats.UnitNone)
+	Redirect      = stats.Int64("redirects", "redirects", stats.UnitDimensionless)
 	redirectsView = &view.View{
 		Name:        "redirects",
 		Description: "redirects",
 		TagKeys:     []tag.Key{ShortKey, FullKey},
 		Measure:     Redirect,
-		Aggregation: view.Sum(),
+		Aggregation: view.Count(),
+	}
+	Creation    = stats.Int64("creation", "creation", stats.UnitDimensionless)
+	cretionView = &view.View{
+		Name:        "creation",
+		Description: "creation",
+		TagKeys:     []tag.Key{ShortKey, FullKey},
+		Measure:     Creation,
+		Aggregation: view.Count(),
 	}
 )
 
@@ -45,7 +53,7 @@ func Initialize(ctx context.Context, r *mux.Router, cfg *Config) error {
 		return err
 	}
 	view.RegisterExporter(prom)
-	err = view.Register(redirectsView)
+	err = view.Register(redirectsView, cretionView)
 	if err != nil {
 		return err
 	}

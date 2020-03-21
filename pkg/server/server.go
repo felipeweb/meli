@@ -26,7 +26,8 @@ type Config struct {
 
 func routes(h *handlers) *mux.Router {
 	r := mux.NewRouter()
-	r.Handle("/", httperr.NewF(h.redirect)).Methods(http.MethodGet)
+	r.Handle("/", httperr.NewF(h.create)).Methods(http.MethodPost)
+	r.Handle("/{short}", httperr.NewF(h.redirect)).Methods(http.MethodGet)
 	return r
 }
 
