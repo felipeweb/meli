@@ -11,12 +11,14 @@ import (
 
 func main() {
 	addr := flag.String("addr", "0.0.0.0:8080", "HTTP address (default :8080)")
-	traceEndpoint := flag.String("traceAddr", "", "jaeger endpoint")
+	traceEndpoint := flag.String("trace_addr", "", "jaeger endpoint")
+	redisURL := flag.String("redis_url", "redis://127.0.0.1", "redis URL")
 	flag.Parse()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	cfg := &server.Config{
-		Addr: *addr,
+		Addr:     *addr,
+		RedisURL: *redisURL,
 		Metrics: &metrics.Config{
 			TraceExporterAddr: *traceEndpoint,
 		},

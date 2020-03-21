@@ -8,7 +8,9 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/caarlos0/httperr"
 	"github.com/felipeweb/meli/pkg/metrics"
+	"github.com/felipeweb/meli/pkg/redis"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 	"gocloud.dev/server"
@@ -17,20 +19,38 @@ import (
 
 // Config server
 type Config struct {
-	Metrics *metrics.Config
-	Addr    string
+	Metrics  *metrics.Config
+	Addr     string
+	RedisURL string
 }
 
-func routes() *mux.Router {
+func routes(h *handlers) *mux.Router {
 	r := mux.NewRouter()
+	r.Handle("/", httperr.NewF(h.redirect)).Methods(http.MethodGet)
 	return r
 }
 
 // Start the HTTP server
 func Start(ctx context.Context, cfg *Config) error {
-	r := routes()
+	opts, err := redis.ParseURL(cfg.RedisURL)
+	if err != nil {
+		return fmt.Errorf("unable to parse redis URL: %w", err)
+	}
+	if opts.MaxRetries < 2 {
+		opts.MaxRetries = 3
+	}
+	redisClient, err := redis.NewClient(&redis.Config{
+		Addr:       opts.Addr,
+		Password:   opts.Password,
+		DB:         opts.DB,
+		MaxRetries: opts.MaxRetries,
+	})
+	if err != nil {
+		return fmt.Errorf("unable to open redis connection: %v", err)
+	}
+	r := routes(&handlers{redisClient})
 	logrus.Info("initialize metrics\n")
-	err := metrics.Initialize(ctx, r, cfg.Metrics)
+	err = metrics.Initialize(ctx, r, cfg.Metrics)
 	if err != nil {
 		return fmt.Errorf("unable to initialize metrics: %w", err)
 	}

@@ -8,8 +8,23 @@ import (
 	"contrib.go.opencensus.io/exporter/prometheus"
 	"github.com/google/gops/agent"
 	"github.com/gorilla/mux"
+	"go.opencensus.io/stats"
 	"go.opencensus.io/stats/view"
+	"go.opencensus.io/tag"
 	"go.opencensus.io/trace"
+)
+
+var (
+	ShortKey = tag.MustNewKey("meli/short")
+	FullKey  = tag.MustNewKey("meli/full")
+	Redirect = stats.Int64("redirects", "redirects", stats.UnitNone)
+	v        = &view.View{
+		Name:        "redirects",
+		Description: "redirects",
+		TagKeys:     []tag.Key{ShortKey, FullKey},
+		Measure:     Redirect,
+		Aggregation: view.Sum(),
+	}
 )
 
 // Config metrics
