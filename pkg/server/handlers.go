@@ -2,7 +2,6 @@ package server
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/caarlos0/httperr"
@@ -34,13 +33,17 @@ func (h handlers) redirect(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		logrus.Warnf("unable to get metric: %v", err)
 	}
-	stats.Record(ctx, metrics.Redirect.M(1))
+	r = r.WithContext(ctx)
+	stats.Record(r.Context(), metrics.Redirect.M(1))
 	http.Redirect(w, r, url, http.StatusMovedPermanently)
 	return nil
 }
 
 type URL struct {
 	URL string `json:"url,omitempty"`
+}
+type Short struct {
+	Short string `json:"short,omitempty"`
 }
 
 func (h handlers) create(w http.ResponseWriter, r *http.Request) error {
@@ -63,13 +66,14 @@ func (h handlers) create(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		logrus.Warnf("unable to get metric: %v", err)
 	}
-	stats.Record(ctx, metrics.Creation.M(1))
-	err = json.NewEncoder(w).Encode(URL{
-		URL: fmt.Sprintf("%s/%s", r.URL.Host, short),
+	r = r.WithContext(ctx)
+	stats.Record(r.Context(), metrics.Creation.M(1))
+	w.WriteHeader(http.StatusCreated)
+	err = json.NewEncoder(w).Encode(Short{
+		Short: short,
 	})
 	if err != nil {
 		return httperr.Wrap(err, http.StatusInternalServerError)
 	}
-	w.WriteHeader(http.StatusCreated)
 	return nil
 }

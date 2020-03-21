@@ -24,8 +24,7 @@ type Config struct {
 	RedisURL string
 }
 
-func routes(h *handlers) *mux.Router {
-	r := mux.NewRouter()
+func routes(r *mux.Router, h *handlers) *mux.Router {
 	r.Handle("/", httperr.NewF(h.create)).Methods(http.MethodPost)
 	r.Handle("/{short}", httperr.NewF(h.redirect)).Methods(http.MethodGet)
 	return r
@@ -49,12 +48,13 @@ func Start(ctx context.Context, cfg *Config) error {
 	if err != nil {
 		return fmt.Errorf("unable to open redis connection: %v", err)
 	}
-	r := routes(&handlers{redisClient})
+	r := mux.NewRouter()
 	logrus.Info("initialize metrics\n")
 	err = metrics.Initialize(ctx, r, cfg.Metrics)
 	if err != nil {
 		return fmt.Errorf("unable to initialize metrics: %w", err)
 	}
+	routes(r, &handlers{redisClient})
 	s := server.New(r, &server.Options{
 		RequestLogger: requestlog.NewStackdriverLogger(os.Stdout, func(e error) { fmt.Println(e) }),
 	})
