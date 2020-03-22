@@ -10,7 +10,7 @@ docker-compose up --build
 
 | URL | Method | Body | Desctiption |
 |-----|--------|------|-------------|
-|/|POST|{"url":"https://felipeweb.dev"}|Create short URL|
+|/|POST|`{"url":"https://felipeweb.dev"}`|Create short URL|
 |/{short}|GET|nil|Redirect to full URL|
 |/{short}|DELETE|nil|Remove short URL|
 |/search/{short}|GET|nil|Get full URL based on short|
