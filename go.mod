@@ -5,6 +5,7 @@ go 1.14
 require (
 	contrib.go.opencensus.io/exporter/jaeger v0.2.0
 	contrib.go.opencensus.io/exporter/prometheus v0.1.0
+	github.com/alicebob/miniredis/v2 v2.11.4
 	github.com/caarlos0/httperr v1.0.0
 	github.com/go-redis/redis/v7 v7.2.0
 	github.com/google/gops v0.3.7

@@ -24,10 +24,11 @@ type Config struct {
 	RedisURL string
 }
 
-func routes(r *mux.Router, h *handlers) *mux.Router {
+func routes(r *mux.Router, h *handlers) {
 	r.Handle("/", httperr.NewF(h.create)).Methods(http.MethodPost)
 	r.Handle("/{short}", httperr.NewF(h.redirect)).Methods(http.MethodGet)
-	return r
+	r.Handle("/{short}", httperr.NewF(h.delete)).Methods(http.MethodDelete)
+	r.Handle("/search/{short}", httperr.NewF(h.search)).Methods(http.MethodGet)
 }
 
 // Start the HTTP server

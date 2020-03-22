@@ -33,6 +33,22 @@ var (
 		Measure:     Creation,
 		Aggregation: view.Count(),
 	}
+	Deletion     = stats.Int64("deletion", "deletion", stats.UnitDimensionless)
+	deletionView = &view.View{
+		Name:        "deletion",
+		Description: "deletion",
+		TagKeys:     []tag.Key{ShortKey},
+		Measure:     Deletion,
+		Aggregation: view.Count(),
+	}
+	Search     = stats.Int64("search", "search", stats.UnitDimensionless)
+	searchView = &view.View{
+		Name:        "search",
+		Description: "search",
+		TagKeys:     []tag.Key{ShortKey},
+		Measure:     Search,
+		Aggregation: view.Count(),
+	}
 )
 
 // Config metrics
@@ -53,7 +69,7 @@ func Initialize(ctx context.Context, r *mux.Router, cfg *Config) error {
 		return err
 	}
 	view.RegisterExporter(prom)
-	err = view.Register(redirectsView, cretionView)
+	err = view.Register(redirectsView, cretionView, deletionView, searchView)
 	if err != nil {
 		return err
 	}

@@ -13,8 +13,35 @@ import (
 	"go.opencensus.io/tag"
 )
 
+type URL struct {
+	URL string `json:"url,omitempty"`
+}
+type Short struct {
+	Short string `json:"short,omitempty"`
+}
+
 type handlers struct {
 	cli *redis.Client
+}
+
+func (h handlers) delete(w http.ResponseWriter, r *http.Request) error {
+	short := mux.Vars(r)["short"]
+	err := h.cli.Del(short)
+	if err == redis.ErrKeyNotFound {
+		return httperr.Wrap(err, http.StatusNotFound)
+	}
+	if err != nil {
+		return httperr.Wrap(err, http.StatusInternalServerError)
+	}
+	ctx, err := tag.New(r.Context(),
+		tag.Insert(metrics.ShortKey, short),
+	)
+	if err != nil {
+		logrus.Warnf("unable to get metric: %v", err)
+	}
+	r = r.WithContext(ctx)
+	stats.Record(r.Context(), metrics.Deletion.M(1))
+	return nil
 }
 
 func (h handlers) redirect(w http.ResponseWriter, r *http.Request) error {
@@ -39,11 +66,31 @@ func (h handlers) redirect(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-type URL struct {
-	URL string `json:"url,omitempty"`
-}
-type Short struct {
-	Short string `json:"short,omitempty"`
+func (h handlers) search(w http.ResponseWriter, r *http.Request) error {
+	short := mux.Vars(r)["short"]
+	url, err := h.cli.Find(short)
+	if err == redis.ErrKeyNotFound {
+		return httperr.Wrap(err, http.StatusNotFound)
+	}
+	if err != nil {
+		return httperr.Wrap(err, http.StatusInternalServerError)
+	}
+	ctx, err := tag.New(r.Context(),
+		tag.Insert(metrics.ShortKey, short),
+		tag.Insert(metrics.FullKey, url),
+	)
+	if err != nil {
+		logrus.Warnf("unable to get metric: %v", err)
+	}
+	r = r.WithContext(ctx)
+	stats.Record(r.Context(), metrics.Search.M(1))
+	err = json.NewEncoder(w).Encode(URL{
+		URL: url,
+	})
+	if err != nil {
+		return httperr.Wrap(err, http.StatusInternalServerError)
+	}
+	return nil
 }
 
 func (h handlers) create(w http.ResponseWriter, r *http.Request) error {
@@ -52,6 +99,7 @@ func (h handlers) create(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return httperr.Wrap(err, http.StatusBadRequest)
 	}
+	defer r.Body.Close()
 	short, err := h.cli.Set(b.URL)
 	if err == redis.ErrInvalidURL {
 		return httperr.Wrap(err, http.StatusBadRequest)

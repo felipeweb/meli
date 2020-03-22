@@ -61,10 +61,11 @@ func (client *Client) Find(id string) (string, error) {
 
 func (client *Client) Del(id string) error {
 	cli := client.cli
-	_, err := cli.Del(id).Result()
-	if err == redis.Nil {
-		return ErrKeyNotFound
+	_, err := client.Find(id)
+	if err != nil {
+		return err
 	}
+	_, err = cli.Del(id).Result()
 	if err != nil {
 		return err
 	}
