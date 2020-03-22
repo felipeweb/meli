@@ -1,5 +1,11 @@
 # Meli URL Shortener
 
+# Choices
+
+**Redis** to store data
+
+**OpenCensus** for metrics
+
 ## Run
 
 ```
