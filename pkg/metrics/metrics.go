@@ -8,6 +8,7 @@ import (
 	"contrib.go.opencensus.io/exporter/prometheus"
 	"github.com/google/gops/agent"
 	"github.com/gorilla/mux"
+	"go.opencensus.io/plugin/ochttp"
 	"go.opencensus.io/stats"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/tag"
@@ -68,7 +69,16 @@ func Initialize(ctx context.Context, r *mux.Router, cfg *Config) error {
 	if err != nil {
 		return err
 	}
+
 	view.RegisterExporter(prom)
+	err = view.Register(ochttp.DefaultClientViews...)
+	if err != nil {
+		return err
+	}
+	err = view.Register(ochttp.DefaultServerViews...)
+	if err != nil {
+		return err
+	}
 	err = view.Register(redirectsView, cretionView, deletionView, searchView)
 	if err != nil {
 		return err
