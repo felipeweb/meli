@@ -10,7 +10,6 @@ import (
 
 	"github.com/caarlos0/httperr"
 	"github.com/felipeweb/meli/pkg/metrics"
-	"github.com/felipeweb/meli/pkg/redis"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 	"gocloud.dev/server"
@@ -33,29 +32,13 @@ func routes(r *mux.Router, h *handlers) {
 
 // Start the HTTP server
 func Start(ctx context.Context, cfg *Config) error {
-	opts, err := redis.ParseURL(cfg.RedisURL)
-	if err != nil {
-		return fmt.Errorf("unable to parse redis URL: %w", err)
-	}
-	if opts.MaxRetries < 2 {
-		opts.MaxRetries = 3
-	}
-	redisClient, err := redis.NewClient(&redis.Config{
-		Addr:       opts.Addr,
-		Password:   opts.Password,
-		DB:         opts.DB,
-		MaxRetries: opts.MaxRetries,
-	})
-	if err != nil {
-		return fmt.Errorf("unable to open redis connection: %v", err)
-	}
 	r := mux.NewRouter()
 	logrus.Info("initialize metrics\n")
-	err = metrics.Initialize(ctx, r, cfg.Metrics)
+	err := metrics.Initialize(ctx, r, cfg.Metrics)
 	if err != nil {
 		return fmt.Errorf("unable to initialize metrics: %w", err)
 	}
-	routes(r, &handlers{redisClient})
+	routes(r, &handlers{cfg})
 	s := server.New(r, &server.Options{
 		RequestLogger: requestlog.NewStackdriverLogger(os.Stdout, func(e error) { fmt.Println(e) }),
 	})

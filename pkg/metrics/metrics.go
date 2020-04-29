@@ -6,6 +6,7 @@ import (
 
 	"contrib.go.opencensus.io/exporter/jaeger"
 	"contrib.go.opencensus.io/exporter/prometheus"
+	"github.com/felipeweb/meli/pkg/redis/instrumentation/redis"
 	"github.com/google/gops/agent"
 	"github.com/gorilla/mux"
 	"go.opencensus.io/plugin/ochttp"
@@ -76,6 +77,10 @@ func Initialize(ctx context.Context, r *mux.Router, cfg *Config) error {
 		return err
 	}
 	err = view.Register(ochttp.DefaultServerViews...)
+	if err != nil {
+		return err
+	}
+	err = view.Register(redis.ObservabilityMetricViews...)
 	if err != nil {
 		return err
 	}

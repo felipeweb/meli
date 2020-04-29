@@ -1,11 +1,14 @@
 package redis
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	u "net/url"
 
-	"github.com/go-redis/redis/v7"
+	"github.com/felipeweb/meli/pkg/redis/instrumentation/redis"
 	"github.com/rs/xid"
+	"go.opencensus.io/trace"
 )
 
 var (
@@ -25,29 +28,43 @@ type Config struct {
 	MaxRetries int
 }
 
-var ParseURL = redis.ParseURL
-
 //create redis client
-func NewClient(config *Config) (*Client, error) {
+func NewClient(ctx context.Context, redisURL string) (*Client, error) {
+	opts, err := redis.ParseURL(redisURL)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse redis URL: %w", err)
+	}
+	if opts.MaxRetries < 2 {
+		opts.MaxRetries = 3
+	}
 	cli := redis.NewClient(&redis.Options{
-		Addr:       config.Addr,
-		Password:   config.Password,
-		DB:         0, //DEFAULT
-		MaxRetries: config.MaxRetries,
+		Addr:       opts.Addr,
+		Password:   opts.Password,
+		DB:         opts.DB,
+		MaxRetries: opts.MaxRetries,
+		Context:    ctx,
 	})
-
 	client := &Client{cli}
-	_, err := cli.Ping().Result()
+	_, err = cli.Ping().Result()
 	if err != nil {
 		return nil, err
 	}
-
 	return client, nil
+}
+
+func (client *Client) Context() context.Context {
+	return client.cli.Context()
+}
+
+func (client *Client) Close() {
+	client.cli.Close()
 }
 
 // find value pair by key
 func (client *Client) Find(id string) (string, error) {
-	cli := client.cli
+	ctx, span := trace.StartSpan(client.cli.Context(), "redis.find")
+	defer span.End()
+	cli := client.cli.WithContext(ctx)
 	url, err := cli.Get(id).Result()
 	// does not contain key
 	if err == redis.Nil {
@@ -60,7 +77,9 @@ func (client *Client) Find(id string) (string, error) {
 }
 
 func (client *Client) Del(id string) error {
-	cli := client.cli
+	ctx, span := trace.StartSpan(client.cli.Context(), "redis.del")
+	defer span.End()
+	cli := client.cli.WithContext(ctx)
 	_, err := client.Find(id)
 	if err != nil {
 		return err
@@ -74,14 +93,14 @@ func (client *Client) Del(id string) error {
 
 // set key-value pair
 func (client *Client) Set(url string) (string, error) {
-
+	ctx, span := trace.StartSpan(client.cli.Context(), "redis.find")
+	defer span.End()
+	cli := client.cli.WithContext(ctx)
 	//check validity of url
 	_, err := u.ParseRequestURI(url)
 	if err != nil {
 		return "", ErrInvalidURL
 	}
-
-	cli := client.cli
 	//decode value, shorten url
 	val := xid.New().String()
 

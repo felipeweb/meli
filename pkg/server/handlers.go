@@ -21,19 +21,24 @@ type Short struct {
 }
 
 type handlers struct {
-	cli *redis.Client
+	cfg *Config
 }
 
 func (h handlers) delete(w http.ResponseWriter, r *http.Request) error {
 	short := mux.Vars(r)["short"]
-	err := h.cli.Del(short)
+	rc, err := redis.NewClient(r.Context(), h.cfg.RedisURL)
+	if err != nil {
+		return httperr.Wrap(err, http.StatusInternalServerError)
+	}
+	defer rc.Close()
+	err = rc.Del(short)
 	if err == redis.ErrKeyNotFound {
 		return httperr.Wrap(err, http.StatusNotFound)
 	}
 	if err != nil {
 		return httperr.Wrap(err, http.StatusInternalServerError)
 	}
-	ctx, err := tag.New(r.Context(),
+	ctx, err := tag.New(rc.Context(),
 		tag.Insert(metrics.ShortKey, short),
 	)
 	if err != nil {
@@ -46,14 +51,19 @@ func (h handlers) delete(w http.ResponseWriter, r *http.Request) error {
 
 func (h handlers) redirect(w http.ResponseWriter, r *http.Request) error {
 	short := mux.Vars(r)["short"]
-	url, err := h.cli.Find(short)
+	rc, err := redis.NewClient(r.Context(), h.cfg.RedisURL)
+	if err != nil {
+		return httperr.Wrap(err, http.StatusInternalServerError)
+	}
+	defer rc.Close()
+	url, err := rc.Find(short)
 	if err == redis.ErrKeyNotFound {
 		return httperr.Wrap(err, http.StatusNotFound)
 	}
 	if err != nil {
 		return httperr.Wrap(err, http.StatusInternalServerError)
 	}
-	ctx, err := tag.New(r.Context(),
+	ctx, err := tag.New(rc.Context(),
 		tag.Insert(metrics.ShortKey, short),
 		tag.Insert(metrics.FullKey, url),
 	)
@@ -68,14 +78,19 @@ func (h handlers) redirect(w http.ResponseWriter, r *http.Request) error {
 
 func (h handlers) search(w http.ResponseWriter, r *http.Request) error {
 	short := mux.Vars(r)["short"]
-	url, err := h.cli.Find(short)
+	rc, err := redis.NewClient(r.Context(), h.cfg.RedisURL)
+	if err != nil {
+		return httperr.Wrap(err, http.StatusInternalServerError)
+	}
+	defer rc.Close()
+	url, err := rc.Find(short)
 	if err == redis.ErrKeyNotFound {
 		return httperr.Wrap(err, http.StatusNotFound)
 	}
 	if err != nil {
 		return httperr.Wrap(err, http.StatusInternalServerError)
 	}
-	ctx, err := tag.New(r.Context(),
+	ctx, err := tag.New(rc.Context(),
 		tag.Insert(metrics.ShortKey, short),
 		tag.Insert(metrics.FullKey, url),
 	)
@@ -100,14 +115,19 @@ func (h handlers) create(w http.ResponseWriter, r *http.Request) error {
 		return httperr.Wrap(err, http.StatusBadRequest)
 	}
 	defer r.Body.Close()
-	short, err := h.cli.Set(b.URL)
+	rc, err := redis.NewClient(r.Context(), h.cfg.RedisURL)
+	if err != nil {
+		return httperr.Wrap(err, http.StatusInternalServerError)
+	}
+	defer rc.Close()
+	short, err := rc.Set(b.URL)
 	if err == redis.ErrInvalidURL {
 		return httperr.Wrap(err, http.StatusBadRequest)
 	}
 	if err != nil {
 		return httperr.Wrap(err, http.StatusInternalServerError)
 	}
-	ctx, err := tag.New(r.Context(),
+	ctx, err := tag.New(rc.Context(),
 		tag.Insert(metrics.ShortKey, short),
 		tag.Insert(metrics.FullKey, b.URL),
 	)
